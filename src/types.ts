@@ -14,6 +14,7 @@ export type NavigationSection =
   | 'overview'
   | 'projects'
   | 'timeline'
+  | 'hrms'
   | 'bookkeeping'
   | 'cost_planner'
   | 'insights'
