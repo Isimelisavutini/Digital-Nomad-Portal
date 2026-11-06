@@ -1,0 +1,6 @@
+{
+  "name": "Cloud & AI Project Cost & Timeline Planner (FJD / USD)",
+  "description": "Interactive financial planner and 6-week architecture timeline for Cloud & AI projects comparing Claude AI, Supabase Pro, and Azure backend costs in FJD and USD with bank FX conversion fees.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

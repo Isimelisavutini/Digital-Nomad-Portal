@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --brand-blue: #164B91;
+  --brand-orange: #F28C28;
+  --brand-purple: #6941A5;
+  --brand-white: #FFFFFF;
+  --brand-reef: #19A7A0;
+  --brand-lagoon-mist: #EAF4F8;
+  --brand-seafoam: #D9F1EC;
+  --brand-deep-navy: #24344D;
+  --brand-cloud-white: #F5F7FA;
+
+  --font-heading: 'Inter', Arial, Helvetica, sans-serif;
+  --font-body: 'Source Sans 3', Arial, Helvetica, sans-serif;
+  --font-formal: Georgia, 'Times New Roman', serif;
+
+  --text-h1: 36px;
+  --text-h2: 28px;
+  --text-h3: 22px;
+  --text-h4: 18px;
+  --text-body: 16px;
+  --text-button: 14px;
+  --text-caption: 12px;
+
+  --space-unit: 8px;
+  --radius-card: 12px;
+  --content-max-width: 1440px;
+}
+
+@theme {
+  --color-brand-blue: #164B91;
+  --color-brand-orange: #F28C28;
+  --color-brand-purple: #6941A5;
+  --color-brand-white: #FFFFFF;
+  --color-brand-reef: #19A7A0;
+  --color-brand-lagoon-mist: #EAF4F8;
+  --color-brand-seafoam: #D9F1EC;
+  --color-brand-deep-navy: #24344D;
+  --color-brand-cloud-white: #F5F7FA;
+
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Source Sans 3', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-formal: Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-body);
+    background-color: var(--brand-cloud-white);
+    color: var(--brand-deep-navy);
+    line-height: 1.6;
+  }
+  
+  h1, h2, h3, h4, h5, h6, button, nav, .font-heading {
+    font-family: var(--font-heading);
+  }
+  
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  }
+}
+
+/* Subtle Pacific reef and wave pattern decoration */
+.reef-wave-pattern {
+  background-color: #164B91;
+  background-image: radial-gradient(circle at 100% 150%, #19A7A0 24px, transparent 25px),
+                    radial-gradient(circle at 0 -50%, #6941A5 24px, transparent 25px);
+  background-size: 48px 48px;
+}
+
+.lagoon-wave-subtle {
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(25, 167, 160, 0.08) 0%, transparent 70%);
+}
