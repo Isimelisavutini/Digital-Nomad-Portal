@@ -27,6 +27,7 @@ import { ControlsSidebar } from './components/ControlsSidebar';
 import { MonthlyChart } from './components/MonthlyChart';
 import { BreakdownTable } from './components/BreakdownTable';
 import { ProjectTimeline } from './components/ProjectTimeline';
+import { HRMS } from './components/HRMS';
 import { ProjectManagement } from './components/ProjectManagement';
 import { BookKeeping } from './components/BookKeeping';
 import { OverviewDashboard } from './components/OverviewDashboard';
@@ -318,6 +319,7 @@ export default function App() {
                 {activeSection === 'overview' && 'Overview'}
                 {activeSection === 'projects' && 'Projects'}
                 {activeSection === 'timeline' && 'Architecture'}
+                {activeSection === 'hrms' && 'HRMS'}
                 {activeSection === 'bookkeeping' && 'Bookkeeping'}
                 {activeSection === 'cost_planner' && 'Cloud & AI Costs'}
                 {activeSection === 'insights' && 'FX Insights'}
@@ -396,6 +398,9 @@ export default function App() {
 
           {/* SECTION 2: 6-WEEK ARCHITECTURE TIMELINE */}
           {activeSection === 'timeline' && <ProjectTimeline />}
+
+          {/* SECTION 2b: HRMS HIRE-TO-EXIT WORKSPACE */}
+          {activeSection === 'hrms' && <HRMS />}
 
           {/* SECTION 3: FX & ARBITRAGE INSIGHTS */}
           {activeSection === 'insights' && (

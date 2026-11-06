@@ -82,6 +82,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           symbol: '▤',
           icon: <Network className="w-4 h-4" />,
         },
+        {
+          id: 'hrms',
+          label: 'HRMS',
+          symbol: '◍',
+          icon: <Building2 className="w-4 h-4" />,
+        },
       ],
     },
     {

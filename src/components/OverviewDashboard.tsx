@@ -103,8 +103,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         </div>
       </div>
 
-      {/* 3 Quick Action Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* 4 Quick Action Tiles */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <button
           type="button"
           onClick={() => onNavigate('projects')}
@@ -147,6 +147,21 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </div>
           <div className="text-[11px] text-[#748198] mt-0.5">
             6-Week 200h blueprint & Australia East ~48ms co-location
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('hrms')}
+          className="bg-white border border-[#dcebe9] hover:border-[#164B91] hover:bg-[#f6fafd] p-4 rounded-xl text-left transition-all group cursor-pointer shadow-2xs"
+        >
+          <span className="text-xl block mb-1.5 text-[#164B91]">◍</span>
+          <div className="text-sm font-bold text-[#22334e] group-hover:text-[#164B91] font-heading flex items-center justify-between">
+            <span>Open HRMS</span>
+            <span className="text-xs text-[#164B91]">→</span>
+          </div>
+          <div className="text-[11px] text-[#748198] mt-0.5">
+            Hire-to-exit: directory, ATS, leave, attendance & reviews
           </div>
         </button>
       </div>
