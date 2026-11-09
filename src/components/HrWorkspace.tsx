@@ -1,6 +1,5 @@
-import React, { Activity, useState } from 'react';
+import React, { Activity } from 'react';
 import type { NavSection } from '../../hrms/src/types';
-import { LEAVE_REQUESTS } from '../../hrms/src/data';
 import { DashboardView } from '../../hrms/src/components/DashboardView';
 import { EmployeesView } from '../../hrms/src/components/EmployeesView';
 import { RecruitmentView } from '../../hrms/src/components/RecruitmentView';
@@ -14,14 +13,13 @@ import { SettingsView } from '../../hrms/src/components/SettingsView';
 
 // Portal-owned shell; the standalone HRMS entry point remains available.
 export default function Workspace({ section, onNavigate }: { section: NavSection; onNavigate: (section: NavSection) => void }) {
-  const [leaves, setLeaves] = useState(LEAVE_REQUESTS);
   const views: Record<NavSection, React.ReactNode> = {
-    dashboard: <DashboardView onNavigate={onNavigate} leaves={leaves} />,
+    dashboard: <DashboardView onNavigate={onNavigate} />,
     employees: <EmployeesView />,
     recruitment: <RecruitmentView />,
     onboarding: <OnboardingView />,
     attendance: <AttendanceView />,
-    leave: <LeaveView leaves={leaves} onChange={setLeaves} />,
+    leave: <LeaveView />,
     payroll: <PayrollView />,
     performance: <PerformanceView />,
     training: <TrainingView />,

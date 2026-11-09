@@ -6,7 +6,6 @@ import {
   ProjectItem,
   ProjectTask,
   PayrollEmployee,
-  PayrollRunRecord,
   InvoiceRecord,
   ExpenseRecord,
 } from './types';
@@ -14,12 +13,6 @@ import {
   INITIAL_CONFIG,
   PRESET_CONFIGS,
   calculateCostSummary,
-  INITIAL_PROJECTS,
-  INITIAL_TASKS,
-  INITIAL_EMPLOYEES,
-  INITIAL_PAYROLL_RUNS,
-  INITIAL_INVOICES,
-  INITIAL_EXPENSES,
 } from './constants';
 import { Sidebar } from './components/Sidebar';
 import { KpiCards } from './components/KpiCards';
@@ -35,6 +28,10 @@ import { LoginGate } from './components/LoginGate';
 import { PartnerAccessModal } from './components/PartnerAccessModal';
 import type { NavSection as HrSection } from '../hrms/src/types';
 import { NAV as HR_NAV } from '../hrms/src/components/ui';
+import { useBusiness, ConnectionStatus } from './data/BusinessProvider';
+import { supabase } from './data/supabase';
+import { toPayrollEmployee } from './data/model';
+import { todayFiji } from './data/workflows';
 import { safeStorage } from './utils/storage';
 import {
   Menu,
@@ -50,6 +47,8 @@ import {
 const HrWorkspace = lazy(() => import('./components/HrWorkspace'));
 
 export default function App() {
+  const business = useBusiness();
+  const { state, mutate } = business;
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return safeStorage.getItem('digital_nomad_authenticated') === 'true';
   });
@@ -63,18 +62,9 @@ export default function App() {
     'payroll' | 'invoices' | 'expenses' | 'pnl' | 'process_pay_run'
   >('payroll');
 
-  // Core Cost Configuration
-  const [config, setConfig] = useState<CostConfiguration>(INITIAL_CONFIG);
-
-  // Projects & Tasks State
-  const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
-  const [tasks, setTasks] = useState<ProjectTask[]>(INITIAL_TASKS);
-
-  // Book-Keeping & Payroll State
-  const [employees, setEmployees] = useState<PayrollEmployee[]>(INITIAL_EMPLOYEES);
-  const [payrollRuns, setPayrollRuns] = useState<PayrollRunRecord[]>(INITIAL_PAYROLL_RUNS);
-  const [invoices, setInvoices] = useState<InvoiceRecord[]>(INITIAL_INVOICES);
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(INITIAL_EXPENSES);
+  const config = state.settings[0] ?? INITIAL_CONFIG;
+  const { projects, tasks, payroll_runs: payrollRuns, invoices, expenses } = state;
+  const employees = state.employees.map(toPayrollEmployee);
 
   // Compute active preset
   const activePreset: PresetType = useMemo(() => {
@@ -99,180 +89,35 @@ export default function App() {
     return calculateCostSummary(config);
   }, [config]);
 
-  // Config Handlers
-  const handleConfigChange = (updated: Partial<CostConfiguration>) => {
-    setConfig((prev) => ({ ...prev, ...updated }));
-  };
-
-  const handleApplyPreset = (presetKey: Exclude<PresetType, 'custom'>) => {
-    const preset = PRESET_CONFIGS[presetKey];
-    setConfig((prev) => ({
-      ...prev,
-      ...preset.config,
-    }));
-  };
-
-  const handleResetDefaults = () => {
-    setConfig(INITIAL_CONFIG);
-  };
-
+  const handleConfigChange = (updated: Partial<CostConfiguration>) => mutate(current => ({ ...current, settings: [{ ...current.settings[0], ...updated, id: 'config' }] }));
+  const handleApplyPreset = (presetKey: Exclude<PresetType, 'custom'>) => handleConfigChange(PRESET_CONFIGS[presetKey].config);
+  const handleResetDefaults = () => handleConfigChange(INITIAL_CONFIG);
   const handleLogout = () => {
-    safeStorage.removeItem('digital_nomad_authenticated');
-    setIsAuthenticated(false);
+    if (supabase) { void supabase.auth.signOut(); return; }
+    safeStorage.removeItem('digital_nomad_authenticated'); setIsAuthenticated(false);
   };
-
-  // Project Management Handlers
-  const handleAddProject = (newProj: Omit<ProjectItem, 'id'>) => {
-    const id = `proj-${Date.now()}`;
-    setProjects((prev) => [
-      {
-        ...newProj,
-        id,
-      },
-      ...prev,
-    ]);
-  };
-
-  const handleAddTask = (newTask: Omit<ProjectTask, 'id'>) => {
-    const id = `task-${Date.now()}`;
-    setTasks((prev) => [
-      {
-        ...newTask,
-        id,
-      },
-      ...prev,
-    ]);
-  };
-
-  const handleToggleTaskStatus = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, status: t.status === 'done' ? 'in_progress' : 'done' } : t
-      )
-    );
-  };
-
-  // Book-Keeping & Payroll Handlers
-  const handleAddEmployee = (newEmp: Omit<PayrollEmployee, 'id'>) => {
-    const id = `emp-${Date.now()}`;
-    setEmployees((prev) => [...prev, { ...newEmp, id }]);
-  };
-
-  const handleRunPayroll = () => {
-    const totalGross = employees.reduce((acc, e) => acc + e.grossPayFjd, 0);
-    const totalFnpfEmp = employees.reduce((acc, e) => acc + e.grossPayFjd * e.fnpfEmployeeRate, 0);
-    const totalFnpfCo = employees.reduce((acc, e) => acc + e.grossPayFjd * e.fnpfEmployerRate, 0);
-    const totalPaye = employees.reduce((acc, e) => acc + e.grossPayFjd * e.payeTaxRate, 0);
-    const totalNet = totalGross - totalFnpfEmp - totalPaye;
-
-    const newRun: PayrollRunRecord = {
-      id: `pr-${Date.now()}`,
-      payPeriod: 'November 2026',
-      runDate: new Date().toISOString().split('T')[0],
-      totalGrossFjd: totalGross,
-      totalFnpfEmployeeFjd: totalFnpfEmp,
-      totalFnpfEmployerFjd: totalFnpfCo,
-      totalPayeTaxFjd: totalPaye,
-      totalNetPayFjd: totalNet,
-      employeeCount: employees.length,
-      status: 'paid',
-    };
-
-    setPayrollRuns((prev) => [newRun, ...prev]);
-  };
-
-  const handleAddInvoice = (newInv: Omit<InvoiceRecord, 'id'>) => {
-    const id = `inv-${Date.now()}`;
-    setInvoices((prev) => [
-      {
-        ...newInv,
-        id,
-      },
-      ...prev,
-    ]);
-  };
-
-  const handleMarkInvoicePaid = (id: string) => {
-    setInvoices((prev) =>
-      prev.map((inv) => (inv.id === id ? { ...inv, status: 'paid' } : inv))
-    );
-  };
-
-  const handleAddExpense = (newExp: Omit<ExpenseRecord, 'id'>) => {
-    const id = `exp-${Date.now()}`;
-    setExpenses((prev) => [
-      {
-        ...newExp,
-        id,
-      },
-      ...prev,
-    ]);
-  };
-
-  const handleSyncCloudCosts = () => {
-    // Current M2-12 baseline items from cost summary
-    const m2 = summary.months[1] || summary.months[0];
-    const today = new Date().toISOString().split('T')[0];
-
-    const synced: ExpenseRecord[] = [
-      {
-        id: `exp-claude-${Date.now()}`,
-        date: today,
-        vendor: 'Anthropic PBC',
-        category: 'ai_subscriptions',
-        description: `Claude Max (${config.claudePlanM212}) Plan with $100 API credits`,
-        amountFjd: m2.claudeFjd,
-        amountUsd: m2.claudeUsd,
-        vatDeductible: true,
-        paymentMethod: 'fiji_card',
-        isSyncedFromPlanner: true,
-      },
-      {
-        id: `exp-supabase-${Date.now()}`,
-        date: today,
-        vendor: 'Supabase Inc',
-        category: 'cloud_hosting',
-        description: `Supabase Pro (${config.supabaseComputeTier}) Australia East`,
-        amountFjd: m2.supabaseFjd,
-        amountUsd: m2.supabaseUsd,
-        vatDeductible: true,
-        paymentMethod: 'fiji_card',
-        isSyncedFromPlanner: true,
-      },
-      {
-        id: `exp-azure-${Date.now()}`,
-        date: today,
-        vendor: 'Microsoft Azure',
-        category: 'cloud_hosting',
-        description: `Azure Compute (${config.azureComputeTier}) Sydney`,
-        amountFjd: m2.azureFjd,
-        amountUsd: m2.azureUsd,
-        vatDeductible: true,
-        paymentMethod: 'fiji_card',
-        isSyncedFromPlanner: true,
-      },
+  const handleAddProject = (project: Omit<ProjectItem, 'id'>) => mutate(current => ({ ...current, projects: [...current.projects, { ...project, id: crypto.randomUUID() }] }));
+  const handleAddTask = (task: Omit<ProjectTask, 'id'>) => mutate(current => ({ ...current, tasks: [...current.tasks, { ...task, id: crypto.randomUUID() }] }));
+  const handleToggleTaskStatus = (id: string) => mutate(current => ({ ...current, tasks: current.tasks.map(task => task.id === id ? { ...task, status: task.status === 'done' ? 'in_progress' : 'done' } : task) }));
+  const handleAddInvoice = (invoice: Omit<InvoiceRecord, 'id'>) => mutate(current => ({ ...current, invoices: [...current.invoices, { ...invoice, id: crypto.randomUUID() }] }));
+  const handleMarkInvoicePaid = (id: string) => mutate(current => ({ ...current, invoices: current.invoices.map(invoice => invoice.id === id ? { ...invoice, status: 'paid' } : invoice) }));
+  const handleAddExpense = (expense: Omit<ExpenseRecord, 'id'>) => mutate(current => ({ ...current, expenses: [...current.expenses, { ...expense, id: crypto.randomUUID() }] }));
+  const handleSyncCloudCosts = () => mutate(current => {
+    const settings = current.settings[0] ?? INITIAL_CONFIG;
+    const costs = calculateCostSummary(settings).months[1];
+    const period = todayFiji().slice(0, 7);
+    const amounts = [
+      { key: 'claude', vendor: 'Anthropic PBC', category: 'ai_subscriptions' as const, usd: costs.claudeUsd, fjd: costs.claudeFjd },
+      { key: 'supabase', vendor: 'Supabase Inc', category: 'cloud_hosting' as const, usd: costs.supabaseUsd, fjd: costs.supabaseFjd },
+      { key: 'azure', vendor: 'Microsoft Azure', category: 'cloud_hosting' as const, usd: costs.azureUsd, fjd: costs.azureFjd },
+      { key: 'fx', vendor: 'Fiji Commercial Bank', category: 'software' as const, usd: costs.fxFeeUsd, fjd: costs.fxFeeFjd },
     ];
-
-    if (config.fxSpreadEnabled) {
-      synced.push({
-        id: `exp-fx-${Date.now()}`,
-        date: today,
-        vendor: 'Fiji Commercial Bank',
-        category: 'software',
-        description: '3.5% Foreign Card Conversion Fee on USD Cloud Stack',
-        amountFjd: m2.fxFeeFjd,
-        amountUsd: m2.fxFeeUsd,
-        vatDeductible: false,
-        paymentMethod: 'fiji_card',
-        isSyncedFromPlanner: true,
-      });
-    }
-
-    setExpenses((prev) => [...synced, ...prev]);
-  };
+    const synced = amounts.map(amount => ({ id: `cloud-${period}-${amount.key}`, date: todayFiji(), vendor: amount.vendor, category: amount.category, description: `${period} planned cloud cost: ${amount.key}`, amountFjd: amount.fjd, amountUsd: amount.usd, vatDeductible: amount.key !== 'fx', paymentMethod: 'fiji_card' as const, isSyncedFromPlanner: true, syncPeriod: period }));
+    return { ...current, expenses: [...current.expenses.filter(expense => !synced.some(item => item.id === expense.id)), ...synced] };
+  });
 
   // Partner authentication gate
-  if (!isAuthenticated) {
+  if (!business.connected && !isAuthenticated) {
     return <LoginGate onSuccess={() => setIsAuthenticated(true)} />;
   }
 
@@ -282,6 +127,7 @@ export default function App() {
     <div className="min-h-screen bg-[#F5F7FA] text-[#24344D] flex selection:bg-[#19A7A0]/20 font-sans">
       {/* PARTNER LIVE ACCESS MODAL */}
       <PartnerAccessModal
+        databaseConnected={business.connected}
         isOpen={isPartnerModalOpen}
         onClose={() => setIsPartnerModalOpen(false)}
       />
@@ -369,6 +215,7 @@ export default function App() {
 
         {/* MAIN BODY CONTAINER */}
         <main className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 w-full max-w-[1460px] mx-auto">
+          <ConnectionStatus />
           <Activity mode={activeSection === 'hrms' ? 'visible' : 'hidden'}>
             <Suspense fallback={<p role="status">Loading HR Management…</p>}>
               <HrWorkspace section={activeHrSection} onNavigate={setActiveHrSection} />
@@ -531,8 +378,6 @@ export default function App() {
               payrollRuns={payrollRuns}
               invoices={invoices}
               expenses={expenses}
-              onAddEmployee={handleAddEmployee}
-              onRunPayroll={handleRunPayroll}
               onAddInvoice={handleAddInvoice}
               onMarkInvoicePaid={handleMarkInvoicePaid}
               onAddExpense={handleAddExpense}

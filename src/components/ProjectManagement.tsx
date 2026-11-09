@@ -22,8 +22,8 @@ import {
 interface ProjectManagementProps {
   projects: ProjectItem[];
   tasks: ProjectTask[];
-  onAddProject: (newProject: Omit<ProjectItem, 'id'>) => void;
-  onAddTask: (newTask: Omit<ProjectTask, 'id'>) => void;
+  onAddProject: (newProject: Omit<ProjectItem, 'id'>) => Promise<boolean>;
+  onAddTask: (newTask: Omit<ProjectTask, 'id'>) => Promise<boolean>;
   onToggleTaskStatus: (taskId: string) => void;
   config: CostConfiguration;
 }
@@ -79,14 +79,14 @@ export const ProjectManagement: React.FC<ProjectManagementProps> = ({
   const budgetDisplay = formatCurrencyValue(totalBudgetFjd, totalBudgetUsd, config.currencyMode);
   const spendDisplay = formatCurrencyValue(totalActualSpendFjd, totalActualSpendUsd, config.currencyMode);
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProjName.trim()) return;
 
     const bFjd = parseFloat(newProjBudgetFjd) || 10000;
     const bUsd = bFjd / config.exchangeRateFJD;
 
-    onAddProject({
+    if (!await onAddProject({
       name: newProjName.trim(),
       client: newProjClient.trim() || 'Internal Client',
       category: newProjCategory,
@@ -99,7 +99,7 @@ export const ProjectManagement: React.FC<ProjectManagementProps> = ({
       progressPercent: 0,
       team: ['Isimeli G.'],
       description: newProjDescription.trim() || 'Pacific digital transformation project.',
-    });
+    })) return;
 
     setNewProjName('');
     setNewProjClient('');
@@ -107,11 +107,11 @@ export const ProjectManagement: React.FC<ProjectManagementProps> = ({
     setShowNewProjectModal(false);
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    onAddTask({
+    if (!await onAddTask({
       projectId: newTaskProjectId,
       title: newTaskTitle.trim(),
       assignee: newTaskAssignee,
@@ -119,7 +119,7 @@ export const ProjectManagement: React.FC<ProjectManagementProps> = ({
       status: 'todo',
       estimatedHours: parseFloat(newTaskHours) || 8,
       dueDate: newTaskDueDate,
-    });
+    })) return;
 
     setNewTaskTitle('');
     setShowNewTaskModal(false);

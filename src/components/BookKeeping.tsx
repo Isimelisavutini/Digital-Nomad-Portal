@@ -1,3 +1,4 @@
+import { PayrollView } from '../../hrms/src/components/PayrollView';
 import React, { useState } from 'react';
 import {
   PayrollEmployee,
@@ -36,12 +37,10 @@ interface BookKeepingProps {
   payrollRuns: PayrollRunRecord[];
   invoices: InvoiceRecord[];
   expenses: ExpenseRecord[];
-  onAddEmployee: (emp: Omit<PayrollEmployee, 'id'>) => void;
-  onRunPayroll: () => void;
-  onAddInvoice: (inv: Omit<InvoiceRecord, 'id'>) => void;
-  onMarkInvoicePaid: (id: string) => void;
-  onAddExpense: (exp: Omit<ExpenseRecord, 'id'>) => void;
-  onSyncCloudCosts: () => void;
+  onAddInvoice: (inv: Omit<InvoiceRecord, 'id'>) => Promise<boolean>;
+  onMarkInvoicePaid: (id: string) => Promise<boolean>;
+  onAddExpense: (exp: Omit<ExpenseRecord, 'id'>) => Promise<boolean>;
+  onSyncCloudCosts: () => Promise<boolean>;
   config: CostConfiguration;
   costSummary: CostSummary;
   activeTab?: BookkeepingTab;
@@ -53,8 +52,6 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
   payrollRuns,
   invoices,
   expenses,
-  onAddEmployee,
-  onRunPayroll,
   onAddInvoice,
   onMarkInvoicePaid,
   onAddExpense,
@@ -72,22 +69,10 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
       onTabChange(tab);
     }
   };
-  const [selectedPayslipEmp, setSelectedPayslipEmp] = useState<PayrollEmployee | null>(null);
 
   // Modals
-  const [showNewEmpModal, setShowNewEmpModal] = useState(false);
   const [showNewInvoiceModal, setShowNewInvoiceModal] = useState(false);
   const [showNewExpenseModal, setShowNewExpenseModal] = useState(false);
-  const [payrollSuccessMsg, setPayrollSuccessMsg] = useState(false);
-
-  // New Employee Form State
-  const [newEmpName, setNewEmpName] = useState('');
-  const [newEmpRole, setNewEmpRole] = useState('');
-  const [newEmpDept, setNewEmpDept] = useState('Engineering');
-  const [newEmpGross, setNewEmpGross] = useState('4500');
-  const [newEmpPayType, setNewEmpPayType] = useState<'monthly' | 'hourly' | 'contractor'>('monthly');
-  const [newEmpBank, setNewEmpBank] = useState('ANZ Fiji');
-  const [newEmpAccount, setNewEmpAccount] = useState('');
 
   // New Invoice Form State
   const [newInvClient, setNewInvClient] = useState('');
@@ -115,10 +100,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
   const totalExpensesFjd = expenses.reduce((acc, e) => acc + e.amountFjd, 0);
 
   // Total Payroll Cost (Gross + Employer FNPF 10%)
-  const totalMonthlyPayrollCostFjd = employees.reduce(
-    (acc, e) => acc + e.grossPayFjd + (e.grossPayFjd * e.fnpfEmployerRate),
-    0
-  );
+  const totalMonthlyPayrollCostFjd = payrollRuns.reduce((sum, run) => sum + run.totalGrossFjd + run.totalFnpfEmployerFjd, 0);
 
   const netOperatingProfitFjd = totalInvoicedRevenueFjd - (totalExpensesFjd + totalMonthlyPayrollCostFjd);
 
@@ -134,36 +116,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
   const netVatPayableFjd = totalVatCollectedFjd - totalVatPaidFjd;
 
   // Handlers
-  const handleCreateEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmpName.trim()) return;
-
-    const gross = parseFloat(newEmpGross) || 3000;
-    const isContractor = newEmpPayType === 'contractor';
-
-    onAddEmployee({
-      name: newEmpName.trim(),
-      role: newEmpRole.trim() || 'Software Engineer',
-      department: newEmpDept,
-      tinNumber: `50-${Math.floor(10000 + Math.random() * 90000)}-1`,
-      fnpfNumber: `FNPF-${Math.floor(100000 + Math.random() * 900000)}`,
-      payType: newEmpPayType,
-      grossPayFjd: gross,
-      fnpfEmployeeRate: isContractor ? 0.0 : 0.08,
-      fnpfEmployerRate: isContractor ? 0.0 : 0.10,
-      payeTaxRate: gross > 5000 ? 0.18 : gross > 3500 ? 0.14 : 0.08,
-      bankName: newEmpBank,
-      accountNumber: newEmpAccount || `${Math.floor(100000000 + Math.random() * 900000000)}`,
-      status: 'active',
-    });
-
-    setNewEmpName('');
-    setNewEmpRole('');
-    setNewEmpAccount('');
-    setShowNewEmpModal(false);
-  };
-
-  const handleCreateInvoice = (e: React.FormEvent) => {
+  const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInvClient.trim()) return;
 
@@ -173,7 +126,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
 
     const invNum = `DN-2026-${String(invoices.length + 1).padStart(3, '0')}`;
 
-    onAddInvoice({
+    const saved = await onAddInvoice({
       invoiceNumber: invNum,
       clientName: newInvClient.trim(),
       clientEmail: newInvEmail.trim() || 'accounts@client.com',
@@ -195,20 +148,21 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
       status: 'sent',
       notes: 'Payment via bank transfer to ANZ Fiji or Credit Card.',
     });
+    if (!saved) return;
 
     setNewInvClient('');
     setNewInvEmail('');
     setShowNewInvoiceModal(false);
   };
 
-  const handleCreateExpense = (e: React.FormEvent) => {
+  const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newExpVendor.trim()) return;
 
     const fjd = parseFloat(newExpAmountFjd) || 100;
     const usd = fjd / config.exchangeRateFJD;
 
-    onAddExpense({
+    const saved = await onAddExpense({
       date: new Date().toISOString().split('T')[0],
       vendor: newExpVendor.trim(),
       category: newExpCategory,
@@ -218,16 +172,11 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
       vatDeductible: true,
       paymentMethod: newExpPaymentMethod,
     });
+    if (!saved) return;
 
     setNewExpVendor('');
     setNewExpDesc('');
     setShowNewExpenseModal(false);
-  };
-
-  const handleExecutePayRun = () => {
-    onRunPayroll();
-    setPayrollSuccessMsg(true);
-    setTimeout(() => setPayrollSuccessMsg(false), 3000);
   };
 
   return (
@@ -243,7 +192,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
               </h2>
             </div>
             <p className="text-xs text-[#24344D]/70 mt-1">
-              Integrated Fiji Payroll (FNPF 8%/10% & PAYE Tax), MYOB Invoicing with 15% VAT, Expense Ledger, and Profit & Loss.
+              Shared employee payroll drafts, client invoices, expenses, and financial summaries.
             </p>
           </div>
 
@@ -257,17 +206,6 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Sync Cloud Costs</span>
-              </button>
-            )}
-
-            {activeTab === 'payroll' && (
-              <button
-                type="button"
-                onClick={handleExecutePayRun}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-[#164B91] text-white hover:bg-[#123e78] shadow-xs transition-all cursor-pointer font-heading"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Process Pay Run</span>
               </button>
             )}
 
@@ -295,15 +233,6 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
           </div>
         </div>
 
-        {payrollSuccessMsg && (
-          <div className="p-3 rounded-lg bg-[#D9F1EC] border border-[#19A7A0]/30 text-[#164B91] text-xs flex items-center justify-between">
-            <span className="flex items-center gap-1.5 font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-[#19A7A0]" />
-              Monthly Payroll Run successfully executed and posted to General Ledger!
-            </span>
-          </div>
-        )}
-
         {/* 4 MYOB Executive Overview KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
           <div className="p-4 rounded-xl bg-[#F5F7FA] border border-[#D9F1EC]">
@@ -321,14 +250,14 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
 
           <div className="p-4 rounded-xl bg-[#F5F7FA] border border-[#D9F1EC]">
             <div className="flex items-center justify-between text-xs text-[#24344D]/70 mb-1">
-              <span className="font-heading">Monthly Staff Payroll</span>
+              <span className="font-heading">Recorded Payroll Drafts</span>
               <Users className="w-4 h-4 text-[#19A7A0]" />
             </div>
             <div className="text-xl font-bold font-mono text-[#24344D]">
               ${totalMonthlyPayrollCostFjd.toLocaleString('en-US', { minimumFractionDigits: 2 })} FJD
             </div>
             <div className="text-[11px] text-[#24344D]/60 mt-1">
-              {employees.length} Active Staff (Incl. 10% FNPF)
+              {employees.length} Staff (configured contributions)
             </div>
           </div>
 
@@ -431,284 +360,15 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
       {/* =========================================================================
           TAB 0: PROCESS PAY RUN (Dedicated Workflow Tab)
           ========================================================================= */}
-      {activeTab === 'process_pay_run' && (
-        <div className="bg-white border border-[#D9F1EC] rounded-xl p-6 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EAF4F8] pb-4">
-            <div>
-              <div className="text-[11px] font-bold text-[#19A7A0] uppercase tracking-wider font-heading">
-                Fiji Payroll Engine
-              </div>
-              <h3 className="text-lg font-bold text-[#24344D] font-heading mt-0.5">
-                Execute Monthly Payroll Disbursement
-              </h3>
-              <p className="text-xs text-[#24344D]/70 mt-1">
-                Disburse salaries, automatically generate compliant FNPF contributions (8% Employee deduction + 10% Employer match), and calculate FRCS PAYE withholding.
-              </p>
-            </div>
+      {(activeTab === 'payroll' || activeTab === 'process_pay_run') && <PayrollView />}
 
-            <button
-              type="button"
-              disabled={employees.length === 0}
-              onClick={handleExecutePayRun}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs font-heading ${
-                employees.length === 0
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-[#164B91] hover:bg-[#123e78] text-white cursor-pointer'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-              <span>Confirm & Process Monthly Pay Run</span>
-            </button>
-          </div>
-
-          {employees.length === 0 ? (
-            <div className="py-12 text-center border border-dashed border-[#D9F1EC] rounded-xl bg-[#F5F7FA]/50 space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#EAF4F8] text-[#164B91] flex items-center justify-center mx-auto text-xl font-mono">
-                ♙
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-[#24344D] font-heading">
-                  No staff members currently in payroll
-                </h4>
-                <p className="text-xs text-[#24344D]/60 max-w-sm mx-auto mt-0.5">
-                  Before processing a pay run, register your employees with their TIN, FNPF numbers, and bank account details.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowNewEmpModal(true)}
-                className="px-4 py-2 rounded-lg bg-[#164B91] text-white text-xs font-bold hover:bg-[#123e78] shadow-xs cursor-pointer font-heading"
-              >
-                + Add Employee First
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-[#F5F7FA] border border-[#D9F1EC]">
-                  <div className="text-xs text-[#24344D]/70 font-heading">Eligible Staff</div>
-                  <div className="text-xl font-bold text-[#164B91] font-mono mt-1">
-                    {employees.length} Active Staff
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#F5F7FA] border border-[#D9F1EC]">
-                  <div className="text-xs text-[#24344D]/70 font-heading">Total Gross Wages</div>
-                  <div className="text-xl font-bold text-[#24344D] font-mono mt-1">
-                    ${employees.reduce((acc, e) => acc + e.grossPayFjd, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} FJD
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#F5F7FA] border border-[#D9F1EC]">
-                  <div className="text-xs text-[#24344D]/70 font-heading">Employer 10% FNPF</div>
-                  <div className="text-xl font-bold text-[#F28C28] font-mono mt-1">
-                    ${employees.reduce((acc, e) => acc + e.grossPayFjd * e.fnpfEmployerRate, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} FJD
-                  </div>
-                </div>
-              </div>
-
-              <div className="border border-[#D9F1EC] rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#EAF4F8] text-[#24344D] font-bold font-heading border-b border-[#D9F1EC]">
-                      <th className="py-2.5 px-3">Employee</th>
-                      <th className="py-2.5 px-3">Gross Pay</th>
-                      <th className="py-2.5 px-3">FNPF (8% Emp)</th>
-                      <th className="py-2.5 px-3">FNPF (10% Co)</th>
-                      <th className="py-2.5 px-3">PAYE Tax</th>
-                      <th className="py-2.5 px-3 text-right">Net Take-Home</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#EAF4F8] font-mono">
-                    {employees.map((e) => {
-                      const fnpfEmp = e.grossPayFjd * e.fnpfEmployeeRate;
-                      const fnpfCo = e.grossPayFjd * e.fnpfEmployerRate;
-                      const paye = e.grossPayFjd * e.payeTaxRate;
-                      const net = e.grossPayFjd - fnpfEmp - paye;
-                      return (
-                        <tr key={e.id}>
-                          <td className="py-2 px-3 font-sans font-semibold text-[#24344D]">{e.name}</td>
-                          <td className="py-2 px-3">${e.grossPayFjd.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-amber-800">-${fnpfEmp.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-amber-900">+${fnpfCo.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-orange-700">-${paye.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-right font-bold text-emerald-700">${net.toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* =========================================================================
-          TAB 1: PAYROLL (MYOB Payroll Engine)
-          ========================================================================= */}
-      {activeTab === 'payroll' && (
-        <div className="space-y-6">
-          {/* Employee Master Payroll Table */}
-          <div className="bg-white border border-[#D9F1EC] rounded-xl p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-[#24344D] font-heading">
-                  Staff Wages, FNPF Contributions & PAYE Withholding
-                </h3>
-                <p className="text-xs text-[#24344D]/70 mt-0.5">
-                  Fiji National Provident Fund (8% Employee deduction + 10% Employer matching) & FRCS PAYE tax.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowNewEmpModal(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#D9F1EC] text-[#164B91] hover:text-[#123e78] hover:bg-[#EAF4F8] self-start sm:self-auto cursor-pointer font-heading"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Employee</span>
-              </button>
-            </div>
-
-            <div className="overflow-x-auto rounded-lg border border-[#D9F1EC]">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-[#EAF4F8] text-[#24344D] border-b border-[#D9F1EC] font-bold font-heading">
-                    <th className="py-3 px-3">Employee Name</th>
-                    <th className="py-3 px-3">Role / Dept</th>
-                    <th className="py-3 px-3 text-right">Gross Pay</th>
-                    <th className="py-3 px-3 text-right text-amber-900">FNPF (8% Emp)</th>
-                    <th className="py-3 px-3 text-right text-amber-900">FNPF (10% Co)</th>
-                    <th className="py-3 px-3 text-right text-orange-700">PAYE Tax</th>
-                    <th className="py-3 px-3 text-right text-emerald-700 font-bold">Net Deposit</th>
-                    <th className="py-3 px-3 text-center">Payslip</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100 font-mono tabular-nums">
-                  {employees.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="py-8 text-center text-xs text-[#24344D]/50 font-sans">
-                        No employees registered in payroll yet. Click "Add Employee" to set up staff, FNPF and PAYE rates.
-                      </td>
-                    </tr>
-                  ) : (
-                    employees.map((emp) => {
-                      const fnpfEmp = emp.grossPayFjd * emp.fnpfEmployeeRate;
-                      const fnpfCo = emp.grossPayFjd * emp.fnpfEmployerRate;
-                      const paye = emp.grossPayFjd * emp.payeTaxRate;
-                      const netPay = emp.grossPayFjd - fnpfEmp - paye;
-
-                      return (
-                        <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-2.5 px-3 font-sans font-semibold text-slate-900">
-                            <div>{emp.name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono font-normal">
-                              TIN: {emp.tinNumber} · {emp.fnpfNumber}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 font-sans text-slate-600">
-                            <div>{emp.role}</div>
-                            <div className="text-[10px] text-slate-400">{emp.department}</div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-semibold text-slate-900">
-                            ${emp.grossPayFjd.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-amber-900 font-medium">
-                            -${fnpfEmp.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-amber-900/80 font-medium">
-                            ${fnpfCo.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-orange-700 font-medium">
-                            -${paye.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700">
-                            ${netPay.toFixed(2)}
-                          </td>
-                          <td className="py-2.5 px-3 text-center font-sans">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPayslipEmp(emp)}
-                              className="p-1 rounded text-blue-700 hover:bg-blue-50 border border-blue-200 text-[11px] font-semibold px-2 transition-colors cursor-pointer"
-                            >
-                              View Slip
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Past Payroll Run Ledger */}
-          <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm space-y-3">
-            <h3 className="text-sm font-bold text-slate-900">Payroll Run History & FRCS Filing Record</h3>
-            <div className="overflow-x-auto rounded-lg border border-stone-200">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-700 border-b border-stone-200 font-bold">
-                    <th className="py-2.5 px-3">Pay Period</th>
-                    <th className="py-2.5 px-3">Disbursement Date</th>
-                    <th className="py-2.5 px-3 text-right">Total Gross</th>
-                    <th className="py-2.5 px-3 text-right text-amber-900">Total FNPF</th>
-                    <th className="py-2.5 px-3 text-right text-orange-700">Total PAYE Tax</th>
-                    <th className="py-2.5 px-3 text-right text-emerald-700 font-bold">Total Net Deposited</th>
-                    <th className="py-2.5 px-3 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100 font-mono tabular-nums">
-                  {payrollRuns.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-xs text-[#24344D]/50 font-sans">
-                        No previous pay runs processed. Click "Process Pay Run" above to execute and log your first monthly disbursement.
-                      </td>
-                    </tr>
-                  ) : (
-                    payrollRuns.map((run) => (
-                      <tr key={run.id} className="hover:bg-slate-50/70">
-                        <td className="py-2.5 px-3 font-sans font-semibold text-slate-900">
-                          {run.payPeriod}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-500 font-sans">{run.runDate}</td>
-                        <td className="py-2.5 px-3 text-right font-semibold text-slate-800">
-                          ${run.totalGrossFjd.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-amber-900">
-                          ${(run.totalFnpfEmployeeFjd + run.totalFnpfEmployerFjd).toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-orange-700">
-                          ${run.totalPayeTaxFjd.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700">
-                          ${run.totalNetPayFjd.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-sans">
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            Settled
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          TAB 2: INVOICES & BILLING (MYOB Invoicing Engine)
-          ========================================================================= */}
       {activeTab === 'invoices' && (
         <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-bold text-slate-900">MYOB Client Invoices & VAT Ledger</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Compliant with Fiji Revenue & Customs Service (FRCS) 15% Value Added Tax (VAT).
+                Invoices currently calculate 15% VAT. Confirm the applicable rate before billing.
               </p>
             </div>
 
@@ -741,7 +401,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
                 {invoices.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-8 text-center text-xs text-[#24344D]/50 font-sans">
-                      No invoices recorded yet. Click "Create New Invoice" to generate an FRCS 15% VAT compliant client bill.
+                      No invoices recorded yet. Click "Create New Invoice" to record a client invoice with the current VAT calculation.
                     </td>
                   </tr>
                 ) : (
@@ -919,10 +579,10 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
           <div className="border-b border-stone-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                Digital Nomad · Annual Profit & Loss (P&L) Statement
+                Digital Nomad · Recorded Financial Summary
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Full income statement reconciling invoiced client revenue against staff payroll and cloud infrastructure operating expenses.
+                Planning summary of recorded invoices, expenses, and payroll draft commitments. Drafts are not bank payments.
               </p>
             </div>
 
@@ -962,21 +622,21 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
               </div>
               <div className="pl-4 space-y-1.5 text-slate-600">
                 <div className="flex items-center justify-between">
-                  <span>Wages & Salaries (Monthly baseline):</span>
+                  <span>Wages & Salaries (Recorded drafts):</span>
                   <span>
                     -$
-                    {employees
-                      .reduce((acc, e) => acc + e.grossPayFjd, 0)
+                    {payrollRuns
+                      .reduce((acc, run) => acc + run.totalGrossFjd, 0)
                       .toFixed(2)}{' '}
                     FJD
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-amber-900">
-                  <span>Employer FNPF Contributions (10% matching):</span>
+                  <span>Employer Contributions (Recorded drafts):</span>
                   <span>
                     -$
-                    {employees
-                      .reduce((acc, e) => acc + e.grossPayFjd * e.fnpfEmployerRate, 0)
+                    {payrollRuns
+                      .reduce((acc, run) => acc + run.totalFnpfEmployerFjd, 0)
                       .toFixed(2)}{' '}
                     FJD
                   </span>
@@ -1028,235 +688,7 @@ export const BookKeeping: React.FC<BookKeepingProps> = ({
       {/* =========================================================================
           PAYSLIP DETAIL MODAL
           ========================================================================= */}
-      {selectedPayslipEmp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white border border-stone-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-start justify-between border-b border-stone-200 pb-3">
-              <div>
-                <div className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-                  Digital Nomad Co. · Fiji Pay Slip
-                </div>
-                <h3 className="text-base font-bold text-slate-900">{selectedPayslipEmp.name}</h3>
-                <p className="text-xs text-slate-500">{selectedPayslipEmp.role} · {selectedPayslipEmp.department}</p>
-              </div>
-              <button
-                onClick={() => setSelectedPayslipEmp(null)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="space-y-3 text-xs font-mono">
-              <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-lg border border-stone-200 font-sans">
-                <div>
-                  <span className="text-slate-400">TIN Number:</span>{' '}
-                  <span className="font-semibold text-slate-800">{selectedPayslipEmp.tinNumber}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">FNPF Number:</span>{' '}
-                  <span className="font-semibold text-slate-800">{selectedPayslipEmp.fnpfNumber}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">Bank:</span>{' '}
-                  <span className="font-semibold text-slate-800">{selectedPayslipEmp.bankName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">Account:</span>{' '}
-                  <span className="font-semibold text-slate-800">{selectedPayslipEmp.accountNumber}</span>
-                </div>
-              </div>
-
-              {/* Earnings & Deductions Breakdown */}
-              <div className="space-y-1.5 border-t border-stone-200 pt-2">
-                <div className="flex items-center justify-between font-sans font-bold text-slate-900">
-                  <span>Gross Earnings:</span>
-                  <span className="font-mono">${selectedPayslipEmp.grossPayFjd.toFixed(2)} FJD</span>
-                </div>
-
-                <div className="pl-3 space-y-1 text-slate-600">
-                  <div className="flex items-center justify-between text-amber-900">
-                    <span>Less: Employee FNPF Contribution (8%):</span>
-                    <span>-${(selectedPayslipEmp.grossPayFjd * selectedPayslipEmp.fnpfEmployeeRate).toFixed(2)} FJD</span>
-                  </div>
-                  <div className="flex items-center justify-between text-orange-700">
-                    <span>Less: Fiji PAYE Income Tax Withholding:</span>
-                    <span>-${(selectedPayslipEmp.grossPayFjd * selectedPayslipEmp.payeTaxRate).toFixed(2)} FJD</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-stone-200 pt-2 flex items-center justify-between font-sans font-bold text-sm text-emerald-800 bg-emerald-50 p-2.5 rounded-lg">
-                  <span>Net Take-Home Pay (Direct Deposit):</span>
-                  <span className="font-mono">
-                    $
-                    {(
-                      selectedPayslipEmp.grossPayFjd -
-                      selectedPayslipEmp.grossPayFjd * selectedPayslipEmp.fnpfEmployeeRate -
-                      selectedPayslipEmp.grossPayFjd * selectedPayslipEmp.payeTaxRate
-                    ).toFixed(2)}{' '}
-                    FJD
-                  </span>
-                </div>
-
-                <div className="p-2 rounded bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-900 flex items-center justify-between font-sans">
-                  <span>Employer FNPF Matching (10% paid to Fund):</span>
-                  <span className="font-mono font-semibold">
-                    +${(selectedPayslipEmp.grossPayFjd * selectedPayslipEmp.fnpfEmployerRate).toFixed(2)} FJD
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  window.print();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Payslip</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedPayslipEmp(null)}
-                className="px-4 py-1.5 rounded-lg bg-[#164B91] text-white text-xs font-semibold hover:bg-[#123e78] cursor-pointer font-heading"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          NEW EMPLOYEE MODAL
-          ========================================================================= */}
-      {showNewEmpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Add Payroll Employee</h3>
-              <button onClick={() => setShowNewEmpModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEmployee} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newEmpName}
-                  onChange={(e) => setNewEmpName(e.target.value)}
-                  placeholder="e.g. Alipate Rokotuivuna"
-                  className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Job Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={newEmpRole}
-                    onChange={(e) => setNewEmpRole(e.target.value)}
-                    placeholder="e.g. Cloud Architect"
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Department</label>
-                  <select
-                    value={newEmpDept}
-                    onChange={(e) => setNewEmpDept(e.target.value)}
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-700 focus:outline-none focus:border-blue-600"
-                  >
-                    <option value="Engineering">Engineering</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Product">Product</option>
-                    <option value="Finance">Finance</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Monthly Gross (FJD)</label>
-                  <input
-                    type="number"
-                    value={newEmpGross}
-                    onChange={(e) => setNewEmpGross(e.target.value)}
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-900 font-mono focus:outline-none focus:border-blue-600 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Pay Type</label>
-                  <select
-                    value={newEmpPayType}
-                    onChange={(e: any) => setNewEmpPayType(e.target.value)}
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-700 focus:outline-none focus:border-blue-600"
-                  >
-                    <option value="monthly">Monthly Salary (FNPF)</option>
-                    <option value="hourly">Hourly Wage</option>
-                    <option value="contractor">Contractor (No FNPF)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Bank Name</label>
-                  <select
-                    value={newEmpBank}
-                    onChange={(e) => setNewEmpBank(e.target.value)}
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-700 focus:outline-none focus:border-blue-600"
-                  >
-                    <option value="ANZ Fiji">ANZ Fiji</option>
-                    <option value="BSP Fiji">BSP Fiji</option>
-                    <option value="Westpac Fiji">Westpac Fiji</option>
-                    <option value="BRED Bank Fiji">BRED Bank Fiji</option>
-                    <option value="HFC Bank Fiji">HFC Bank Fiji</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Account Number</label>
-                  <input
-                    type="text"
-                    value={newEmpAccount}
-                    onChange={(e) => setNewEmpAccount(e.target.value)}
-                    placeholder="e.g. 102938481"
-                    className="w-full bg-slate-50 border border-stone-200 rounded-lg p-2 text-slate-900 font-mono focus:outline-none focus:border-blue-600 focus:bg-white"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewEmpModal(false)}
-                  className="px-3 py-1.5 rounded-lg border border-stone-200 text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-[#164B91] text-white font-semibold hover:bg-[#123e78] shadow-xs cursor-pointer font-heading"
-                >
-                  Add Employee
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          NEW INVOICE MODAL
-          ========================================================================= */}
       {showNewInvoiceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
           <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">

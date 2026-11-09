@@ -42,9 +42,10 @@ An executive financial planning and architecture sprint tracker built for **Digi
   - **Week 6 (40 hrs):** RLS Security Audit, Supavisor Connection Pooling (Port 6543), Australia East Latency Benchmarks, UAT & Go-Live.
 - **Regional Latency Blueprint:** Fiji to Sydney (`Australia East` / `ap-southeast-2`) subsea cable route benchmarking (~48ms roundtrip) vs US West (~142ms).
 
-### 6. Partner Security Gate
-- Password-protected partner access with session persistence and 1-click credential filling.
-- **Partner Access Password:** `DigitalNomad26`
+### 6. Access
+- Supabase mode: individual email/password accounts and database-enforced workspace membership.
+- Demo mode: shared access gate with session persistence and quick fill.
+- **Demo Access Password:** `DigitalNomad26`
 
 ---
 
@@ -69,16 +70,20 @@ performance, training, and HR settings run within the portal on port 3000.
 The integrated workspace uses the portal's compiled Tailwind CSS and React runtime;
 it does not require the standalone HRMS server or its Tailwind CDN.
 
-HR module state is retained while switching modules and portal sections in the
-same session. The existing HR sample data and in-memory actions remain demos:
-refreshing resets changes, and HR employee/payroll records are separate from
-Bookkeeping records. Existing placeholder creation buttons do not save records.
-Database persistence and a shared workforce/payroll model are future work.
+HR and Bookkeeping now share one employee roster and payroll history. Hiring,
+onboarding, attendance, leave, invoices, expenses, project records and settings
+use the shared data layer. In Supabase mode, records survive refresh and require
+individual email/password sign-in. Without Supabase configuration, the app
+explicitly runs a demo that resets on refresh.
+
+See [Supabase database setup and workflow details](supabase/README.md) for the
+migration, Vercel variables, account provisioning, permissions and payroll limits.
+
 The standalone `hrms/` app and its deployment workflow remain available.
 
 ### Prerequisites
-- Node.js 18+
-- npm or bun
+- Node.js 24.x
+- Bun 1.4.4 (lockfile installation), npm (development commands)
 
 ### Installation
 ```bash
@@ -86,8 +91,8 @@ The standalone `hrms/` app and its deployment workflow remain available.
 git clone <YOUR_GITHUB_REPO_URL>
 cd digital-nomad-cost-planner
 
-# Install dependencies
-npm install
+# Install dependencies using the committed lockfile
+bun install --frozen-lockfile
 
 # Start local development server
 npm run dev

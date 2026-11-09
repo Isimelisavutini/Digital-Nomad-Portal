@@ -1,3 +1,4 @@
+import { useBusiness } from '../data/BusinessProvider';
 import React, { useState } from 'react';
 import { ProjectScope, TimelineWeek } from '../types';
 import { TIMELINE_SCOPES, STANDARD_6_WEEK_TIMELINE } from '../constants';
@@ -18,20 +19,11 @@ import {
 
 export const ProjectTimeline: React.FC = () => {
   const [selectedScope, setSelectedScope] = useState<ProjectScope>('standard');
-  const [weeksData, setWeeksData] = useState<TimelineWeek[]>(STANDARD_6_WEEK_TIMELINE);
+  const { state, mutate } = useBusiness();
+  const weeksData = STANDARD_6_WEEK_TIMELINE.map(week => ({...week,deliverables:week.deliverables.map(deliverable => ({...deliverable,completed:state.timeline.find(record => record.id === deliverable.id)?.completed ?? deliverable.completed}))}));
   const [activeTab, setActiveTab] = useState<'sprints' | 'blueprint'>('sprints');
 
-  const toggleDeliverable = (weekIndex: number, deliverableId: string) => {
-    setWeeksData((prev) => {
-      const next = [...prev];
-      const week = { ...next[weekIndex] };
-      week.deliverables = week.deliverables.map((d) =>
-        d.id === deliverableId ? { ...d, completed: !d.completed } : d
-      );
-      next[weekIndex] = week;
-      return next;
-    });
-  };
+  const toggleDeliverable = (_weekIndex: number, id: string) => mutate(current => ({...current,timeline:[...current.timeline.filter(record => record.id !== id),{id,completed:!(current.timeline.find(record => record.id === id)?.completed ?? STANDARD_6_WEEK_TIMELINE.flatMap(week => week.deliverables).find(record => record.id === id)?.completed ?? false)}]}));
 
   // Compute total hours & completed hours
   const totalPlannedHours = weeksData.reduce((acc, w) => acc + w.totalHours, 0);

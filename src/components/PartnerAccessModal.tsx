@@ -14,9 +14,10 @@ import {
 interface PartnerAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
+  databaseConnected?: boolean;
 }
 
-export const PartnerAccessModal: React.FC<PartnerAccessModalProps> = ({ isOpen, onClose }) => {
+export const PartnerAccessModal: React.FC<PartnerAccessModalProps> = ({ isOpen, onClose, databaseConnected = false }) => {
   const [copiedType, setCopiedType] = useState<'password' | 'invite' | 'url' | null>(null);
 
   if (!isOpen) return null;
@@ -35,6 +36,8 @@ export const PartnerAccessModal: React.FC<PartnerAccessModalProps> = ({ isOpen, 
       setTimeout(() => setCopiedType(null), 2000);
     });
   };
+
+  if (databaseConnected) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><section role="dialog" aria-modal="true" aria-label="Workspace access" className="w-full max-w-md space-y-4 rounded-xl bg-white p-6"><h2 className="text-lg font-semibold">Workspace access</h2><p className="text-sm text-slate-600">Each person signs in with their own account. An administrator must grant workspace membership before they can see company records. Sharing the portal link does not grant access.</p><div className="flex gap-3"><button type="button" onClick={() => copyText(currentUrl,'url')} className="rounded-lg bg-[#194b91] px-4 py-2 text-sm text-white">{copiedType === 'url' ? 'Copied' : 'Copy portal link'}</button><button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm">Close</button></div></section></div>;
 
   const inviteTemplate = `Digital Nomad — Pacific Operations & Financial Portal
 Partner Password: DigitalNomad26

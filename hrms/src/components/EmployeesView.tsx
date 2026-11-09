@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Mail, Phone, MapPin, Building2, Briefcase, Plus } from 'lucide-react';
-import type { Employee } from '../types';
-import { EMPLOYEES, DEPARTMENTS } from '../data';
+import type { Employee } from '../../../src/data/model';
+import { EmployeeEditor } from '../../../src/components/EmployeeEditor';
+import { useHrData } from '../../../src/data/BusinessProvider';
 import { formatDate, formatCurrency } from '../utils';
 import { Badge, Avatar, SectionHeader } from './ui';
 
 function EmployeesView() {
+  const { EMPLOYEES, DEPARTMENTS } = useHrData();
+  const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('all');
   const [selected, setSelected] = useState<Employee | null>(null);
@@ -18,14 +21,16 @@ function EmployeesView() {
       const matchD = deptFilter === 'all' || e.department === deptFilter;
       return matchQ && matchD;
     });
-  }, [search, deptFilter]);
+  }, [search, deptFilter, EMPLOYEES]);
 
   if (selected) {
     return (
       <div>
+        {editing && <EmployeeEditor employee={selected} onClose={() => { setEditing(false); setSelected(null); }} />}
         <button onClick={() => setSelected(null)} className="text-sm text-brand-600 font-medium mb-4 hover:underline flex items-center gap-1">
           ← Back to employees
         </button>
+        <button type="button" onClick={() => setEditing(true)} className="mb-4 ml-4 rounded-lg bg-brand-600 px-4 py-2 text-sm text-white">Edit employee & pay</button>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-brand-700 to-brand-800 px-6 py-8 text-white">
             <div className="flex items-center gap-4">
@@ -67,11 +72,12 @@ function EmployeesView() {
 
   return (
     <div>
+      {editing && <EmployeeEditor onClose={() => setEditing(false)} />}
       <SectionHeader
         title="Employees"
         subtitle={`${EMPLOYEES.length} total records`}
         action={
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 shadow-sm">
+          <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 shadow-sm">
             <Plus className="w-4 h-4" /> Add Employee
           </button>
         }

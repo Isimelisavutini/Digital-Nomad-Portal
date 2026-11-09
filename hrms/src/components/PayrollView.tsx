@@ -1,86 +1,206 @@
-import React from 'react';
-import { Plus } from 'lucide-react';
-import { EMPLOYEES, PAYROLL_RUNS } from '../data';
-import { formatCurrency, formatDate } from '../utils';
-import { Badge, StatCard, SectionHeader } from './ui';
-
+import React, { useState } from "react";
+import { useHrData } from "../../../src/data/BusinessProvider";
+import { EmployeeEditor } from "../../../src/components/EmployeeEditor";
+import type { Employee } from "../../../src/data/model";
+import { createPayroll, todayFiji } from "../../../src/data/workflows";
+import { formatCurrency } from "../utils";
+import { Badge, SectionHeader } from "./ui";
 export function PayrollView() {
-  const totalMonthly = EMPLOYEES.filter(e => e.status !== 'terminated').reduce((s, e) => s + e.salary / 12, 0);
-
+  const { state, mutate, busy } = useHrData();
+  const [editing, setEditing] = useState<Employee | "new" | null>(null);
+  const [month, setMonth] = useState(todayFiji().slice(0, 7));
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedRun = state.payroll_runs.find((run) => run.id === selected);
   return (
-    <div>
+    <div className="space-y-5">
+      {editing && (
+        <EmployeeEditor
+          employee={editing === "new" ? undefined : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
       <SectionHeader
         title="Payroll"
-        subtitle="Salary runs and payslips"
+        subtitle="Shared FJD payroll records for HR and Bookkeeping"
         action={
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 shadow-sm">
-            <Plus className="w-4 h-4" /> Run Payroll
-          </button>
+          mutate && (
+            <button
+              type="button"
+              onClick={() => setEditing("new")}
+              className="rounded-lg border px-4 py-2 text-sm"
+            >
+              Add employee
+            </button>
+          )
         }
       />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Est. Monthly Gross" value={formatCurrency(totalMonthly)} />
-        <StatCard label="Last Run" value={PAYROLL_RUNS[0]?.period || '—'} sub={PAYROLL_RUNS[0] ? formatDate(PAYROLL_RUNS[0].runDate) : undefined} />
-        <StatCard label="Last Net Paid" value={formatCurrency(PAYROLL_RUNS[0]?.totalNet || 0)} accent="text-emerald-600" />
+      <div className="space-y-3 rounded-xl border bg-white p-5">
+        <label className="text-sm">
+          Payroll month
+          <input
+            aria-label="Payroll month"
+            type="month"
+            required
+            value={month}
+            onChange={(event) => {
+              if (event.target.value) setMonth(event.target.value);
+            }}
+            className="ml-3 rounded border p-2"
+          />
+        </label>
+        <p className="text-xs text-slate-500">
+          Draft estimates use recorded hours for hourly staff. Monthly salary is
+          prorated for working days before the start date, approved unpaid
+          leave, and recorded absences. Review employee deduction rates before
+          approval. No bank payment or statutory filing is made.
+        </p>
+        <button
+          type="button"
+          disabled={!mutate || busy || !state.employees.length}
+          onClick={() =>
+            void mutate?.((current) => {
+              const end = new Date(
+                Date.UTC(
+                  Number(month.slice(0, 4)),
+                  Number(month.slice(5, 7)),
+                  0,
+                ),
+              )
+                .toISOString()
+                .slice(0, 10);
+              return {
+                ...current,
+                payroll_runs: [
+                  ...current.payroll_runs,
+                  createPayroll(current, `${month}-01`, end),
+                ],
+              };
+            })
+          }
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+        >
+          Create draft payroll
+        </button>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Payroll History</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <div className="overflow-x-auto rounded-xl border bg-white">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="text-left px-5 py-3 font-medium">Period</th>
-              <th className="text-left px-5 py-3 font-medium">Run Date</th>
-              <th className="text-left px-5 py-3 font-medium">Employees</th>
-              <th className="text-left px-5 py-3 font-medium">Gross</th>
-              <th className="text-left px-5 py-3 font-medium">Deductions</th>
-              <th className="text-left px-5 py-3 font-medium">Net</th>
-              <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="p-3">Period</th>
+              <th className="p-3">Employees</th>
+              <th className="p-3">Gross (FJD)</th>
+              <th className="p-3">Net (FJD)</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Details</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {PAYROLL_RUNS.map(pr => (
-              <tr key={pr.id} className="hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium">{pr.period}</td>
-                <td className="px-5 py-3 text-slate-600">{formatDate(pr.runDate)}</td>
-                <td className="px-5 py-3 text-slate-600">{pr.employeeCount}</td>
-                <td className="px-5 py-3 text-slate-600">{formatCurrency(pr.totalGross)}</td>
-                <td className="px-5 py-3 text-slate-600">{formatCurrency(pr.totalDeductions)}</td>
-                <td className="px-5 py-3 font-medium text-slate-900">{formatCurrency(pr.totalNet)}</td>
-                <td className="px-5 py-3"><Badge status={pr.status} /></td>
+          <tbody>
+            {state.payroll_runs.map((run) => (
+              <tr key={run.id} className="border-t">
+                <td className="p-3">{run.payPeriod}</td>
+                <td className="p-3">{run.employeeCount}</td>
+                <td className="p-3">{formatCurrency(run.totalGrossFjd)}</td>
+                <td className="p-3">{formatCurrency(run.totalNetPayFjd)}</td>
+                <td className="p-3">
+                  <Badge status={run.status} />
+                </td>
+                <td className="p-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelected(run.id)}
+                    className="text-brand-600 underline"
+                  >
+                    View snapshot
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!state.payroll_runs.length && (
+          <p className="p-5 text-sm text-slate-500">No payroll runs yet.</p>
+        )}
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Salary Register</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <section className="overflow-x-auto rounded-xl border bg-white">
+        <h2 className="p-4 font-semibold">Shared employee pay register</h2>
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="text-left px-5 py-3 font-medium">Employee</th>
-              <th className="text-left px-5 py-3 font-medium">Department</th>
-              <th className="text-left px-5 py-3 font-medium">Annual</th>
-              <th className="text-left px-5 py-3 font-medium">Monthly</th>
-              <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="p-3">Employee</th>
+              <th className="p-3">Pay type</th>
+              <th className="p-3">Base / rate (FJD)</th>
+              <th className="p-3">Employee / employer / withholding</th>
+              <th className="p-3">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {EMPLOYEES.filter(e => e.status !== 'terminated').map(e => (
-              <tr key={e.id} className="hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium">{e.firstName} {e.lastName}</td>
-                <td className="px-5 py-3 text-slate-600">{e.department}</td>
-                <td className="px-5 py-3 text-slate-600">{formatCurrency(e.salary)}</td>
-                <td className="px-5 py-3 font-medium">{formatCurrency(e.salary / 12)}</td>
-                <td className="px-5 py-3"><Badge status={e.status} /></td>
+          <tbody>
+            {state.employees.map((employee) => (
+              <tr key={employee.id} className="border-t">
+                <td className="p-3">
+                  {employee.firstName} {employee.lastName}
+                </td>
+                <td className="p-3">{employee.payType}</td>
+                <td className="p-3">
+                  {formatCurrency(
+                    employee.payType === "hourly"
+                      ? employee.hourlyRateFjd
+                      : employee.grossPayFjd,
+                  )}
+                </td>
+                <td className="p-3">
+                  {employee.fnpfEmployeeRate * 100}% /{" "}
+                  {employee.fnpfEmployerRate * 100}% /{" "}
+                  {employee.payeTaxRate * 100}%
+                </td>
+                <td className="p-3">
+                  {mutate && (
+                    <button
+                      type="button"
+                      onClick={() => setEditing(employee)}
+                      className="text-brand-600 underline"
+                    >
+                      Edit pay settings
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </section>
+      {selectedRun && (
+        <section className="overflow-x-auto rounded-xl border bg-white p-5">
+          <h2 className="mb-3 font-semibold">
+            {selectedRun.payPeriod} · Immutable draft snapshot
+          </h2>
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr>
+                <th className="p-2">Employee</th>
+                <th className="p-2">Unpaid days</th>
+                <th className="p-2">Hours worked</th>
+                <th className="p-2">Gross FJD</th>
+                <th className="p-2">Deductions FJD</th>
+                <th className="p-2">Net FJD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedRun.items.map((item) => (
+                <tr key={item.employeeId}>
+                  <td className="p-2">{item.name}</td>
+                  <td className="p-2">{item.unpaidDays}</td>
+                  <td className="p-2">{item.hoursWorked}</td>
+                  <td className="p-2">{formatCurrency(item.grossFjd)}</td>
+                  <td className="p-2">
+                    {formatCurrency(item.fnpfEmployeeFjd + item.payeFjd)}
+                  </td>
+                  <td className="p-2">{formatCurrency(item.netFjd)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

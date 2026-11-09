@@ -1,10 +1,12 @@
 import React from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { EMPLOYEES, ONBOARDING_TASKS, getInitials } from '../data';
+import { getInitials } from '../data';
+import { useHrData } from '../../../src/data/BusinessProvider';
 import { formatDate, labelize } from '../utils';
 import { Badge, Avatar, SectionHeader } from './ui';
 
 export function OnboardingView() {
+  const { EMPLOYEES, ONBOARDING_TASKS, mutate } = useHrData();
   const newHires = EMPLOYEES.filter(e => e.status === 'probation');
   return (
     <div>
@@ -46,6 +48,7 @@ export function OnboardingView() {
                         <p className="text-xs text-slate-400">Due {formatDate(t.dueDate)} · {labelize(t.assignee)}</p>
                       </div>
                       <Badge status={t.status} />
+                      {mutate && <button type="button" onClick={() => void mutate(current => ({...current,onboarding:current.onboarding.map(task => task.id === t.id ? {...task,status:task.status === 'completed' ? 'pending' : 'completed',completedAt:task.status === 'completed' ? undefined : new Date().toISOString().slice(0,10)} : task)}))} className="rounded border px-2 py-1 text-xs">{t.status === 'completed' ? 'Reopen' : 'Complete'}</button>}
                     </div>
                   ))}
                 </div>

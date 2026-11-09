@@ -1,9 +1,10 @@
 import React from 'react';
-import { PERFORMANCE_GOALS, PERFORMANCE_REVIEWS, getEmployeeName } from '../data';
+import { useHrData } from '../../../src/data/BusinessProvider';
 import { formatDate } from '../utils';
 import { Badge, SectionHeader } from './ui';
 
 export function PerformanceView() {
+  const { PERFORMANCE_GOALS, PERFORMANCE_REVIEWS, getEmployeeName } = useHrData();
   return (
     <div>
       <SectionHeader title="Performance" subtitle="Goals and reviews" />

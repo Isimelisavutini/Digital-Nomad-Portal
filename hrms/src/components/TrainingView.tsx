@@ -1,10 +1,11 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
-import { TRAINING_COURSES, TRAINING_ASSIGNMENTS, getEmployeeName } from '../data';
+import { useHrData } from '../../../src/data/BusinessProvider';
 import { formatDate } from '../utils';
 import { Badge, SectionHeader } from './ui';
 
 export function TrainingView() {
+  const { TRAINING_COURSES, TRAINING_ASSIGNMENTS, getEmployeeName } = useHrData();
   return (
     <div>
       <SectionHeader title="Training" subtitle="Courses and assignments" />

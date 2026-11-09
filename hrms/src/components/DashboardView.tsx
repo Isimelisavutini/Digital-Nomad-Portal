@@ -1,11 +1,13 @@
 import React from 'react';
 import { Users, Clock, CalendarDays, Briefcase, ArrowUpRight, ArrowRight } from 'lucide-react';
 import type { NavSection, LeaveRequest } from '../types';
-import { EMPLOYEES, LEAVE_REQUESTS, ATTENDANCE, CANDIDATES, JOB_OPENINGS, DEPARTMENTS, getEmployeeName } from '../data';
+import { useHrData } from '../../../src/data/BusinessProvider';
 import { formatDate, labelize } from '../utils';
 import { Badge, Avatar } from './ui';
 
-export function DashboardView({ onNavigate, leaves = LEAVE_REQUESTS }: { onNavigate: (s: NavSection) => void; leaves?: LeaveRequest[] }) {
+export function DashboardView({ onNavigate, leaves: suppliedLeaves }: { onNavigate: (s: NavSection) => void; leaves?: LeaveRequest[] }) {
+  const { EMPLOYEES, LEAVE_REQUESTS, ATTENDANCE, CANDIDATES, JOB_OPENINGS, DEPARTMENTS, getEmployeeName } = useHrData();
+  const leaves = suppliedLeaves ?? LEAVE_REQUESTS;
   const active = EMPLOYEES.filter(e => e.status === 'active' || e.status === 'probation').length;
   const pendingLeave = leaves.filter(l => l.status === 'pending').length;
   const openJobs = JOB_OPENINGS.filter(j => j.status === 'open').length;
