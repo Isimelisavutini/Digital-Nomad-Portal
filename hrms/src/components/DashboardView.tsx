@@ -1,12 +1,12 @@
 import React from 'react';
-import type { NavSection } from '../types';
+import type { NavSection, LeaveRequest } from '../types';
 import { EMPLOYEES, LEAVE_REQUESTS, ATTENDANCE, CANDIDATES, JOB_OPENINGS, DEPARTMENTS, getEmployeeName } from '../data';
 import { formatDate, labelize } from '../utils';
 import { Badge, StatCard, SectionHeader } from './ui';
 
-export function DashboardView({ onNavigate }: { onNavigate: (s: NavSection) => void }) {
+export function DashboardView({ onNavigate, leaves = LEAVE_REQUESTS }: { onNavigate: (s: NavSection) => void; leaves?: LeaveRequest[] }) {
   const active = EMPLOYEES.filter(e => e.status === 'active' || e.status === 'probation').length;
-  const pendingLeave = LEAVE_REQUESTS.filter(l => l.status === 'pending').length;
+  const pendingLeave = leaves.filter(l => l.status === 'pending').length;
   const openJobs = JOB_OPENINGS.filter(j => j.status === 'open').length;
   const candidates = CANDIDATES.filter(c => !['hired', 'rejected'].includes(c.status)).length;
   const today = '2026-11-06';
@@ -30,7 +30,7 @@ export function DashboardView({ onNavigate }: { onNavigate: (s: NavSection) => v
             <button onClick={() => onNavigate('leave')} className="text-xs text-brand-600 font-medium hover:underline">View all</button>
           </div>
           <div className="divide-y divide-slate-50">
-            {LEAVE_REQUESTS.slice(0, 4).map(lr => (
+            {leaves.slice(0, 4).map(lr => (
               <div key={lr.id} className="px-5 py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900 truncate">{getEmployeeName(lr.employeeId)}</p>

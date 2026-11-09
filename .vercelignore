@@ -1,0 +1,7 @@
+hrms/node_modules
+hrms/dist
+node_modules
+dist
+*.log
+.env*
+!.env.example

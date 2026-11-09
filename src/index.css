@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../hrms/src";
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -30,6 +31,12 @@
 }
 
 @theme {
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
   --color-brand-blue: #164B91;
   --color-brand-orange: #F28C28;
   --color-brand-purple: #6941A5;
@@ -75,3 +82,7 @@
 .lagoon-wave-subtle {
   background-image: radial-gradient(ellipse at 50% 0%, rgba(25, 167, 160, 0.08) 0%, transparent 70%);
 }
+
+/* Keep wide HR tables inside their workspace on small screens. */
+.hr-workspace :where(.overflow-hidden):has(> table) { overflow-x: auto; }
+.hr-workspace table { min-width: 640px; }

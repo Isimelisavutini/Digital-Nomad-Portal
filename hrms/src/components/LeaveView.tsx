@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Plus, CheckCircle2, XCircle } from 'lucide-react';
-import type { LeaveStatus } from '../types';
+import type { LeaveStatus, LeaveRequest } from '../types';
 import { LEAVE_REQUESTS, getEmployeeName } from '../data';
 import { formatDate, labelize } from '../utils';
 import { Badge, SectionHeader } from './ui';
 
-export function LeaveView() {
-  const [leaves, setLeaves] = useState(LEAVE_REQUESTS);
+export function LeaveView({ leaves: sharedLeaves, onChange }: { leaves?: LeaveRequest[]; onChange?: (leaves: LeaveRequest[]) => void } = {}) {
+  const [localLeaves, setLocalLeaves] = useState(LEAVE_REQUESTS);
+  const leaves = sharedLeaves ?? localLeaves;
   const [filter, setFilter] = useState<'all' | LeaveStatus>('all');
 
   const filtered = filter === 'all' ? leaves : leaves.filter(l => l.status === filter);
 
   const handleAction = (id: string, status: LeaveStatus) => {
-    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status, reviewedAt: '2026-11-06', reviewedBy: 'e2' } : l));
+    const next = leaves.map(l => l.id === id ? { ...l, status, reviewedAt: new Date().toISOString().slice(0, 10), reviewedBy: 'e2' } : l);
+    if (onChange) onChange(next);
+    else setLocalLeaves(next);
   };
 
   return (

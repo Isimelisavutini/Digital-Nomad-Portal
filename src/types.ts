@@ -11,6 +11,7 @@ export type PresetType = 'lean' | 'standard' | 'highscale' | 'custom';
 export type ProjectScope = 'mvp' | 'standard' | 'enterprise';
 
 export type NavigationSection =
+  | 'hrms'
   | 'overview'
   | 'projects'
   | 'timeline'

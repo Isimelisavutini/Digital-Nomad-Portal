@@ -110,6 +110,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
+      group: 'People',
+      items: [{
+        id: 'hrms',
+        label: 'HR Management',
+        symbol: '♙',
+        icon: <Building2 className="w-4 h-4" />,
+      }],
+    },
+    {
       group: 'Administration',
       items: [
         {
@@ -226,6 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div key={item.id} className="space-y-1">
                     <button
                       type="button"
+                      aria-label={item.label}
                       onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center gap-2.5 text-left px-3 py-2.5 rounded-xl border transition-all cursor-pointer font-heading text-xs font-semibold ${
                         isActive

@@ -61,6 +61,21 @@ An executive financial planning and architecture sprint tracker built for **Digi
 
 ## 🚀 Getting Started
 
+### Integrated HR Management
+
+Sign in to Digital Nomad and select **HR Management** in the People section.
+The dashboard, employees, recruitment, onboarding, attendance, leave, payroll,
+performance, training, and HR settings run within the portal on port 3000.
+The integrated workspace uses the portal's compiled Tailwind CSS and React runtime;
+it does not require the standalone HRMS server or its Tailwind CDN.
+
+HR module state is retained while switching modules and portal sections in the
+same session. The existing HR sample data and in-memory actions remain demos:
+refreshing resets changes, and HR employee/payroll records are separate from
+Bookkeeping records. Existing placeholder creation buttons do not save records.
+Database persistence and a shared workforce/payroll model are future work.
+The standalone `hrms/` app and its deployment workflow remain available.
+
 ### Prerequisites
 - Node.js 18+
 - npm or bun
@@ -80,6 +95,18 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Production Build & Launch
+
+### Vercel: deploy the combined portal
+
+Import the root **app** as a single Vercel project. Set Root Directory to `./`,
+Application Preset to **Vite**, Node.js to **24.x**, Build Command to
+`npm run build`, and Output Directory to `dist`. The root `vercel.json` sets
+the frozen Bun installation command. Do not import `hrms/` as a second service
+for the combined portal: its components are included in the root application.
+Deploy a Git branch containing the integration and `vercel.json` changes.
+After deployment, sign in and open **People → HR Management**.
+
+### Local production server
 ```bash
 # Build production bundle
 npm run build

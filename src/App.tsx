@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, lazy, Suspense, Activity } from 'react';
 import {
   CostConfiguration,
   PresetType,
@@ -44,6 +44,8 @@ import {
   Share2,
   LogOut,
 } from 'lucide-react';
+
+const HrWorkspace = lazy(() => import('./components/HrWorkspace'));
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -305,6 +307,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              aria-label="Open navigation"
               onClick={() => setIsMobileSidebarOpen(true)}
               className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white lg:hidden cursor-pointer"
             >
@@ -322,6 +325,7 @@ export default function App() {
                 {activeSection === 'cost_planner' && 'Cloud & AI Costs'}
                 {activeSection === 'insights' && 'FX Insights'}
                 {activeSection === 'settings' && 'Settings'}
+                {activeSection === 'hrms' && 'HR Management'}
               </b>
             </div>
           </div>
@@ -360,6 +364,11 @@ export default function App() {
 
         {/* MAIN BODY CONTAINER */}
         <main className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 w-full max-w-[1460px] mx-auto">
+          <Activity mode={activeSection === 'hrms' ? 'visible' : 'hidden'}>
+            <Suspense fallback={<p role="status">Loading HR Management…</p>}>
+              <HrWorkspace />
+            </Suspense>
+          </Activity>
           {/* SECTION 0: DASHBOARD OVERVIEW */}
           {activeSection === 'overview' && (
             <OverviewDashboard
