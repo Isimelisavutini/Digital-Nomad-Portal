@@ -33,6 +33,8 @@ import { OverviewDashboard } from './components/OverviewDashboard';
 import { SettingsView } from './components/SettingsView';
 import { LoginGate } from './components/LoginGate';
 import { PartnerAccessModal } from './components/PartnerAccessModal';
+import type { NavSection as HrSection } from '../hrms/src/types';
+import { NAV as HR_NAV } from '../hrms/src/components/ui';
 import { safeStorage } from './utils/storage';
 import {
   Menu,
@@ -55,6 +57,7 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Active navigation section: overview, projects, timeline, bookkeeping, cost_planner, insights, settings
+  const [activeHrSection, setActiveHrSection] = useState<HrSection>('dashboard');
   const [activeSection, setActiveSection] = useState<NavigationSection>('overview');
   const [activeBookkeepingTab, setActiveBookkeepingTab] = useState<
     'payroll' | 'invoices' | 'expenses' | 'pnl' | 'process_pay_run'
@@ -287,6 +290,8 @@ export default function App() {
       <Sidebar
         activeSection={activeSection}
         onSelectSection={setActiveSection}
+        currentHrSection={activeHrSection}
+        onSelectHrSection={setActiveHrSection}
         currentBookkeepingTab={activeBookkeepingTab}
         onSelectBookkeepingTab={setActiveBookkeepingTab}
         config={config}
@@ -325,7 +330,7 @@ export default function App() {
                 {activeSection === 'cost_planner' && 'Cloud & AI Costs'}
                 {activeSection === 'insights' && 'FX Insights'}
                 {activeSection === 'settings' && 'Settings'}
-                {activeSection === 'hrms' && 'HR Management'}
+                {activeSection === 'hrms' && `HR / ${activeHrSection === 'settings' ? 'HR Settings' : HR_NAV.find(item => item.id === activeHrSection)?.label}`}
               </b>
             </div>
           </div>
@@ -366,7 +371,7 @@ export default function App() {
         <main className="p-4 sm:p-6 lg:p-8 space-y-6 flex-1 w-full max-w-[1460px] mx-auto">
           <Activity mode={activeSection === 'hrms' ? 'visible' : 'hidden'}>
             <Suspense fallback={<p role="status">Loading HR Management…</p>}>
-              <HrWorkspace />
+              <HrWorkspace section={activeHrSection} onNavigate={setActiveHrSection} />
             </Suspense>
           </Activity>
           {/* SECTION 0: DASHBOARD OVERVIEW */}
